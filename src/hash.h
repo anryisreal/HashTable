@@ -51,6 +51,7 @@ namespace std {
                     }
                     return i_value;
                 }
+                ~Info() = default;
                 operator Type2() const {
                     try {
                         if (!isValue) {
@@ -73,14 +74,17 @@ namespace std {
                 HashTable* adress() const {
                     return ht;
                 }
-                void change(Type2& value) {
+                void __adress(HashTable* other) {
+                    ht = other;
+                }
+                void change(Type2 value) {
                     i_value = value;
                 }
             private:
                 HashTable* ht {nullptr};
                 Type1 i_key;
                 Type2 i_value;
-                int index;
+                int index{-1};
                 bool isValue{false};
         };
         int h_capacity {0}; // Real size of the HashTable 
@@ -106,7 +110,9 @@ namespace std {
         }
         ~HashTable() {
             delete[] ht;
+            ht = nullptr;
             delete[] keys;
+            keys = nullptr;
         }
 
         Info operator[] (Type1 _key) {
@@ -123,6 +129,23 @@ namespace std {
                 return Info(this, _key);
             }
             return ht[index];
+        }
+        const HashTable& operator=(const HashTable& other) {
+            if (&other == this) {
+                return *this;
+            }
+
+            h_capacity = other.h_capacity;
+            count = other.count;
+            delete[] ht;
+            delete[] keys;
+            ht = other.ht;
+            keys = other.keys;
+            for (int i = 0; i < count; i++) {
+                ht[keys[i]].__adress(this);
+            }
+            
+            return other;
         }
 
         int size() const {
@@ -162,8 +185,7 @@ namespace std {
                     h_capacity *= 2;
                 }
                 Info* newht = new Info[h_capacity];
-                int* newkeys = new int[h_capacity];
-                copy(keys, keys + count, newkeys);
+                int* newkeys = new int[count];
                 copy(ht, ht + size, newht);
                 delete[] ht;
                 delete[] keys;
