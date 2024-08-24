@@ -4,36 +4,9 @@
 #include <initializer_list>
 #include <utility>
 #include <iostream>
-#include <string>
+#include "hashExcp.h"
 
-namespace std {
-
-    class HashException : public std::exception {
-        protected:
-            std::string msg;
-        public:
-            HashException(const char* er_msg) : msg{er_msg} {}
-            HashException(const HashException& other) : msg{other.msg} {}
-            const char* what () const noexcept override {
-                return msg.c_str();
-            }
-    };
-
-    class HE_IndexError : public HashException {
-        private:
-            void writemsg(int& capacity) noexcept {
-                msg += std::to_string(capacity);
-            }
-        public:
-            HE_IndexError(int capacity) : HashException("IndexError: index goes beyond the size limits: The requested index exceeds - ") {
-                writemsg(capacity);
-            }
-    };
-
-    class HE_SizeError: public HashException {
-        public:
-            HE_SizeError() : HashException("SizeError: There is no place to insert an element") { }
-    };
+namespace Hash {
 
     template <typename Type1, typename Type2, int(*UserHashFunc)(Type1 key)=nullptr>
     class HashTable {
@@ -58,7 +31,7 @@ namespace std {
                             throw HE_IndexError(this->ht->capacity()); 
                         }
                     }
-                    catch(std::HE_IndexError& error) {
+                    catch(Hash::HE_IndexError& error) {
                         std::cout << error.what() << std::endl;
                         std::abort();
                     }
@@ -87,25 +60,42 @@ namespace std {
                 int index{-1};
                 bool isValue{false};
         };
-        int h_capacity {0}; // Real size of the HashTable 
-        int count {0}; // The number of items(Info) in the HashTable
-        Info* ht{nullptr}; // Array of pointers to on items(Info)  ---Our HashTable---
-        int* keys{nullptr};
+
+        int h_capacity {0};         // Real size of the HashTable 
+        int count {0};              // The number of items(Info) in the HashTable
+        Info* ht{nullptr};          // Array of pointers to on items(Info)  ---Our HashTable---
+        int* keys{nullptr};         // Array of initialized indexes
+
+        // Request Types
         enum CollisionType {
             search,
             insertion
         };
-        const int _MAX_SIZE_ = 3000000; 
+        const int _MAX_SIZE_ = 3000000; // Maximum HashTable size 
 
 
     public:
-        HashTable() = default;
+        HashTable() : h_capacity{1}, count{0} {
+            ht = new Info[1];
+            keys = new int[1];
+        }
         HashTable(std::initializer_list<std::pair<const Type1, Type2>>&& ht) : HashTable() {
             this->h_capacity = ht.size();
             this->ht = new Info[h_capacity];
             this->keys = new int[h_capacity];
             for (auto pair: ht) {
                 __insert(pair);
+            }
+        }
+        HashTable(const HashTable& other) {
+            h_capacity = other.h_capacity;
+            count = other.count;
+            ht = new Info[h_capacity];
+            keys = new int[count];
+            std::copy(other.ht, other.ht + h_capacity, ht);
+            std::copy(other.keys, other.keys + count, keys);
+            for (int i = 0; i < count; i++) {
+                ht[keys[i]].__adress(this);
             }
         }
         ~HashTable() {
@@ -116,6 +106,15 @@ namespace std {
         }
 
         Info operator[] (Type1 _key) {
+            try {
+                if (!h_capacity) {
+                    throw HE_InitialError();
+                }
+            }
+            catch(HE_InitialError& error) {
+                std::cout << error.what() << std::endl;
+                std::abort();
+            }
 
             int index = 0;
             if (!UserHashFunc) {
@@ -130,22 +129,13 @@ namespace std {
             }
             return ht[index];
         }
-        const HashTable& operator=(const HashTable& other) {
-            if (&other == this) {
-                return *this;
-            }
 
-            h_capacity = other.h_capacity;
-            count = other.count;
-            delete[] ht;
-            delete[] keys;
-            ht = other.ht;
-            keys = other.keys;
-            for (int i = 0; i < count; i++) {
-                ht[keys[i]].__adress(this);
-            }
-            
-            return other;
+        HashTable& operator=(HashTable other) {
+            std::swap(h_capacity, other.h_capacity);
+            std::swap(count, other.count);
+            std::swap(ht, other.ht);
+            std::swap(keys, other.keys);
+            return *this;
         }
 
         int size() const {
@@ -158,7 +148,7 @@ namespace std {
         
         void print() const {
             for (int i = 0; i < count; i++) {
-                cout << ht[keys[i]].second() << endl;
+                std::cout << ht[keys[i]].second() << std::endl;
             }
         }
 
@@ -176,25 +166,35 @@ namespace std {
                 std::cout << error.what() << std::endl;
             }
 
-            int size = h_capacity;
-            if (index > h_capacity) {
-                if (h_capacity * 2 > _MAX_SIZE_)  {
-                    h_capacity = _MAX_SIZE_;
-                }
-                else {
-                    h_capacity *= 2;
-                }
-                Info* newht = new Info[h_capacity];
-                int* newkeys = new int[count];
-                copy(ht, ht + size, newht);
-                delete[] ht;
-                delete[] keys;
-                ht = newht;
-                keys = newkeys;
+            int new_capacity = h_capacity * 2;
+            if (new_capacity > _MAX_SIZE_)  {
+                new_capacity = _MAX_SIZE_;
             }
+            Info* new_ht = new Info[new_capacity];
+            int* new_keys = new int[new_capacity];
+            for (int i = 0; i < count; i++) {
+                int new_index = HashFunction(ht[keys[i]].first());
+                new_ht[new_index] = ht[keys[i]];
+                new_keys[i] = new_index;
+            }
+
+            delete[] ht;
+            delete[] keys;
+            ht = new_ht;
+            keys = new_keys;
+            h_capacity = new_capacity;
         }
 
         void __insert(std::pair<const Type1, Type2> pair) {
+            try {
+                if (!h_capacity) {
+                    throw HE_InitialError();
+                }
+            }
+            catch(HE_InitialError& error) {
+                std::cout << error.what() << std::endl;
+                std::abort();
+            }
             int index = 0;
             if (!UserHashFunc) {
                 index = HashFunction(pair.first);
