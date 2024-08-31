@@ -20,9 +20,9 @@
 #include "hash.h"
 
 int main() {
-    Hash::HashTable<int, std::string> table;
+    Hash::HashTable<int, std::string> table;         // Инициализация
     
-    table[1] = "Hello ";
+    table[1] = "Hello ";                             // Вставка элемента "Hello" по ключу - 1
     table[2] = "World!;
 
     std::cout << table[1] << table[2] << std::endl;
