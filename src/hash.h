@@ -1,5 +1,4 @@
-#ifndef _HASH_TABLE_H_
-#define _HASH_TABLE_H_
+#pragma once
  
 #include <initializer_list>
 #include <utility>
@@ -17,42 +16,45 @@ namespace Hash {
                 Info(HashTable* ht, Type1 _key) : ht{ht}, i_key{_key}, isValue{false} { }
                 Info(HashTable* ht, std::pair<const Type1, Type2> pair, int& index) : ht{ht}, i_key{pair.first}, i_value{pair.second}, index{index}, isValue{true} { }
                 const Type2 operator=(Type2 value) {
-                    ht->__changev(index, value);
+                    ht->__resize(index);
                     if (!isValue) {
-                        ht->__insert(std::pair(i_key, i_value));
+                        ht->__insert(std::pair(i_key, value));
                         isValue = true;
+                    }
+                    else {
+                        ht->__changev(index, value);
                     }
                     return i_value;
                 }
-                ~Info() = default;
+
                 operator Type2() const {
-                    try {
-                        if (!isValue) {
-                            throw HE_IndexError(this->ht->capacity()); 
-                        }
-                    }
-                    catch(Hash::HE_IndexError& error) {
-                        std::cout << error.what() << std::endl;
-                        std::abort();
+                    if (!isValue) {
+                        throw HE_IndexError(ht->capacity()); 
                     }
                     
                     return i_value;
                 }
+
                 Type1 first() const {
                     return i_key;
                 }
+
                 Type2 second() const {
                     return i_value;
                 }
+
                 HashTable* adress() const {
                     return ht;
                 }
+
                 void __adress(HashTable* other) {
                     ht = other;
                 }
+
                 void change(Type2 value) {
                     i_value = value;
                 }
+
             private:
                 HashTable* ht {nullptr};
                 Type1 i_key;
@@ -100,21 +102,13 @@ namespace Hash {
         }
         ~HashTable() {
             delete[] ht;
-            ht = nullptr;
             delete[] keys;
+
+            ht = nullptr;
             keys = nullptr;
         }
 
         Info operator[] (Type1 _key) {
-            try {
-                if (!h_capacity) {
-                    throw HE_InitialError();
-                }
-            }
-            catch(HE_InitialError& error) {
-                std::cout << error.what() << std::endl;
-                std::abort();
-            }
 
             int index = 0;
             if (!UserHashFunc) {
@@ -148,7 +142,7 @@ namespace Hash {
         
         void print() const {
             for (int i = 0; i < count; i++) {
-                std::cout << ht[keys[i]].second() << std::endl;
+                std::cout << "(" << ht[keys[i]].first() << ", " << ht[keys[i]].second() << ")" << std::endl;
             }
         }
 
@@ -157,13 +151,8 @@ namespace Hash {
         }
 
         void __resize(int index) {
-            try {
-                if (index > _MAX_SIZE_) {
-                    throw HE_SizeError();
-                }
-            }
-            catch(HE_SizeError& error) {
-                std::cout << error.what() << std::endl;
+            if (index > _MAX_SIZE_) {
+                throw HE_SizeError();
             }
 
             int new_capacity = h_capacity * 2;
@@ -186,14 +175,8 @@ namespace Hash {
         }
 
         void __insert(std::pair<const Type1, Type2> pair) {
-            try {
-                if (!h_capacity) {
-                    throw HE_InitialError();
-                }
-            }
-            catch(HE_InitialError& error) {
-                std::cout << error.what() << std::endl;
-                std::abort();
+            if (!h_capacity) {
+                throw HE_InitialError();
             }
             int index = 0;
             if (!UserHashFunc) {
@@ -249,5 +232,4 @@ namespace Hash {
         }
 
     };
-}   
-#endif
+}  
